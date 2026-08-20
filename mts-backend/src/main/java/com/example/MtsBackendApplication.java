@@ -10,7 +10,7 @@ public class MtsBackendApplication {
 		SpringApplication.run(MtsBackendApplication.class, args);
 
 		int a = 10;
-		int b = 20
+		int b = 20;
 	}
 
 }
