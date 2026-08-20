@@ -1,11 +1,6 @@
 pipeline {
     agent any
 
-    tools {
-        maven 'Maven-3'    // Configure this name in Jenkins > Global Tool Configuration
-        jdk   'JDK-17'     // Configure this name in Jenkins > Global Tool Configuration
-    }
-
     environment {
         NEXUS_URL        = 'http://localhost:8081'
         NEXUS_REPO       = 'maven-snapshots'
