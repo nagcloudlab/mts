@@ -11,9 +11,12 @@ pipeline {
                 }
             }
         }
-        stage('stage-2') {
+        stage('stage-2- Unit Test') {
             steps {
                 echo 'Stage 2...'
+                dir('mts-backend') {
+                    sh 'mvn test'
+                }
             }
         }
         stage('stage-3') {
