@@ -1,0 +1,39 @@
+version: '3.8'
+
+# CI Infrastructure for Demo
+# Nexus Artifactory + MailHog (dummy mail server)
+# Usage: docker-compose up -d
+
+services:
+
+  # -------------------------------------------------------
+  # Sonatype Nexus 3 - Artifact Repository Manager
+  # UI:  http://localhost:8081
+  # Default admin password: check /nexus-data/admin.password
+  # -------------------------------------------------------
+  nexus:
+    image: sonatype/nexus3:latest
+    container_name: nexus
+    ports:
+      - "8081:8081"
+    volumes:
+      - nexus-data:/nexus-data
+    environment:
+      - INSTALL4J_ADD_VM_PARAMS=-Xms512m -Xmx512m -XX:MaxDirectMemorySize=512m
+    restart: unless-stopped
+
+  # -------------------------------------------------------
+  # MailHog - Dummy SMTP Mail Server
+  # SMTP: localhost:1025
+  # Web UI: http://localhost:8025 (view captured emails)
+  # -------------------------------------------------------
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: mailhog
+    ports:
+      - "1025:1025"   # SMTP
+      - "8025:8025"   # Web UI
+    restart: unless-stopped
+
+volumes:
+  nexus-data:
