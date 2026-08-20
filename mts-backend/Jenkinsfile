@@ -3,9 +3,12 @@ pipeline {
     agent any
 
     stages {
-        stage('stage-1') {
+        stage('stage-1- Compile') {
             steps {
-                echo 'Stage 1...'
+                dir('mts-backend') {
+                    echo 'Stage 1...'
+                    sh 'mvn clean compile'
+                }
             }
         }
         stage('stage-2') {
