@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         NEXUS_URL        = 'http://localhost:8081'
-        NEXUS_REPO       = 'maven-snapshots'
+        NEXUS_REPO       = 'psi-mts-repo'
         NEXUS_CREDENTIAL = 'nexus-credentials'  // Add in Jenkins > Credentials
         ARTIFACT_ID      = 'mts-backend'
         GROUP_ID         = 'com.example'
