@@ -16,6 +16,12 @@
 
 	<properties>
 		<java.version>17</java.version>
+		<!-- SonarQube SAST Configuration -->
+		<sonar.host.url>http://localhost:9000</sonar.host.url>
+		<sonar.projectKey>mts-backend</sonar.projectKey>
+		<sonar.projectName>MTS Backend</sonar.projectName>
+		<sonar.java.source>17</sonar.java.source>
+		<sonar.coverage.jacoco.xmlReportPaths>${project.build.directory}/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
 	</properties>
 
 	<dependencies>
@@ -155,6 +161,31 @@
 						<include>**/*Test.java</include>
 					</includes>
 				</configuration>
+			</plugin>
+
+			<!-- JaCoCo — Code Coverage (feeds into SonarQube) -->
+			<plugin>
+				<groupId>org.jacoco</groupId>
+				<artifactId>jacoco-maven-plugin</artifactId>
+				<version>0.8.12</version>
+				<executions>
+					<execution>
+						<id>prepare-agent</id>
+						<goals><goal>prepare-agent</goal></goals>
+					</execution>
+					<execution>
+						<id>report</id>
+						<phase>test</phase>
+						<goals><goal>report</goal></goals>
+					</execution>
+				</executions>
+			</plugin>
+
+			<!-- SonarQube Scanner — SAST static analysis -->
+			<plugin>
+				<groupId>org.sonarsource.scanner.maven</groupId>
+				<artifactId>sonar-maven-plugin</artifactId>
+				<version>4.0.0.4121</version>
 			</plugin>
 		</plugins>
 	</build>

@@ -1,0 +1,20 @@
+{
+  "name": "mts-notification-service",
+  "version": "1.0.0",
+  "description": "MTS Notification & Audit Microservice",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "jest --watchAll=false",
+    "test:watch": "jest"
+  },
+  "dependencies": {
+    "express": "^4.19.0",
+    "cors": "^2.8.5"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^6.3.0"
+  }
+}

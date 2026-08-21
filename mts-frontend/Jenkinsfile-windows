@@ -1,0 +1,93 @@
+pipeline {
+    agent any
+
+    environment {
+        NEXUS_URL        = 'http://localhost:8081'
+        NEXUS_REPO       = 'psi-mts-repo'
+        NEXUS_CREDENTIAL = 'nexus-credentials'
+        ARTIFACT_ID      = 'mts-frontend'
+        VERSION          = '1.0.0'
+    }
+
+    options {
+        buildDiscarder(logRotator(numToKeepStr: '5'))
+        timestamps()
+        timeout(time: 10, unit: 'MINUTES')
+        disableConcurrentBuilds()
+    }
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                echo "Branch: ${env.BRANCH_NAME ?: 'N/A'}"
+                echo "Build:  #${env.BUILD_NUMBER}"
+                checkout scm
+            }
+        }
+
+        stage('Install Dependencies') {
+            steps {
+                dir('mts-frontend') {
+                    bat 'npm ci'
+                }
+            }
+        }
+
+        stage('Test') {
+            steps {
+                dir('mts-frontend') {
+                    bat 'npm test'
+                }
+            }
+        }
+
+        stage('Build') {
+            steps {
+                dir('mts-frontend') {
+                    bat 'npm run build'
+                }
+            }
+        }
+
+        stage('Package') {
+            steps {
+                dir('mts-frontend') {
+                    bat "tar -czf ${ARTIFACT_ID}-${VERSION}-${BUILD_NUMBER}.tar.gz -C dist ."
+                }
+            }
+            post {
+                success {
+                    archiveArtifacts artifacts: "mts-frontend/${ARTIFACT_ID}-*.tar.gz", fingerprint: true
+                }
+            }
+        }
+
+        stage('Publish to Nexus') {
+            steps {
+                dir('mts-frontend') {
+                    withCredentials([usernamePassword(
+                        credentialsId: "${NEXUS_CREDENTIAL}",
+                        usernameVariable: 'NEXUS_USER',
+                        passwordVariable: 'NEXUS_PASS'
+                    )]) {
+                        bat """
+                            curl -v -u %NEXUS_USER%:%NEXUS_PASS% ^
+                                 --upload-file ${ARTIFACT_ID}-${VERSION}-${BUILD_NUMBER}.tar.gz ^
+                                 ${NEXUS_URL}/repository/${NEXUS_REPO}/${ARTIFACT_ID}/${VERSION}/${ARTIFACT_ID}-${VERSION}-${BUILD_NUMBER}.tar.gz
+                        """
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        success { echo 'Build SUCCEEDED' }
+        failure { echo 'Build FAILED' }
+        always {
+            echo 'Cleaning workspace...'
+            cleanWs()
+        }
+    }
+}

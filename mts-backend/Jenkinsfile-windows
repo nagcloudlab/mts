@@ -7,6 +7,8 @@ pipeline {
         NEXUS_CREDENTIAL = 'nexus-credentials'
         ARTIFACT_ID      = 'mts-backend'
         GROUP_ID         = 'com.mts'
+        SONAR_URL        = 'http://localhost:9000'
+        SONAR_CREDENTIAL = 'sonar-token'          // Add in Jenkins > Credentials (Secret text)
     }
 
     options {
@@ -57,13 +59,69 @@ pipeline {
                 dir('mts-backend') {
                     echo '=== PYRAMID BOTTOM: Unit Tests ==='
                     echo '--- No Spring context | Mockito mocks | Milliseconds ---'
-                    bat 'mvn test -Dgroups=unit -B'
+                    bat 'mvn test -Dgroups=unit jacoco:report -B'
                 }
             }
             post {
                 always {
                     junit testResults: 'mts-backend\\target\\surefire-reports\\*.xml', allowEmptyResults: true
                 }
+            }
+        }
+
+        // ╔═══════════════════════════════════════════════════════════════╗
+        // ║              SAST — Static Application Security Testing     ║
+        // ║                                                              ║
+        // ║   SonarQube scans source code for:                           ║
+        // ║   • Security vulnerabilities (SQL injection, XSS, etc.)      ║
+        // ║   • Code smells & technical debt                             ║
+        // ║   • Bug patterns & reliability issues                        ║
+        // ║   • Code coverage (via JaCoCo report)                        ║
+        // ║   • Code duplications                                        ║
+        // ║                                                              ║
+        // ║   Dashboard: http://localhost:9000/dashboard?id=mts-backend  ║
+        // ╚═══════════════════════════════════════════════════════════════╝
+
+        stage('Code Quality Check (SAST)') {
+            steps {
+                dir('mts-backend') {
+                    echo '=== SAST: SonarQube Static Analysis ==='
+                    echo '--- Security vulnerabilities | Code smells | Coverage | Duplications ---'
+                    withCredentials([string(
+                        credentialsId: "${SONAR_CREDENTIAL}",
+                        variable: 'SONAR_TOKEN'
+                    )]) {
+                        bat """
+                            mvn sonar:sonar ^
+                                -Dsonar.host.url=${SONAR_URL} ^
+                                -Dsonar.login=%SONAR_TOKEN% ^
+                                -B
+                        """
+                    }
+                }
+            }
+        }
+
+        // ╔═══════════════════════════════════════════════════════════════╗
+        // ║   QUALITY GATE — Pass/Fail decision from SonarQube          ║
+        // ║                                                              ║
+        // ║   If Quality Gate FAILS → build FAILS (no deploy)            ║
+        // ║   If Quality Gate PASSES → proceed to next stage             ║
+        // ║                                                              ║
+        // ║   Prereq: Install "SonarQube Scanner" plugin in Jenkins      ║
+        // ║           Configure SonarQube server in Jenkins > System      ║
+        // ║           Add webhook in SonarQube:                          ║
+        // ║             Admin > Configuration > Webhooks > Create        ║
+        // ║             URL: http://<jenkins-host>:8080/sonarqube-webhook/║
+        // ╚═══════════════════════════════════════════════════════════════╝
+
+        stage('Quality Gate') {
+            steps {
+                echo '=== Waiting for SonarQube Quality Gate result... ==='
+                timeout(time: 5, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
+                }
+                echo '=== Quality Gate PASSED — code meets quality standards ==='
             }
         }
 
