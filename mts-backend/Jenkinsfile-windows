@@ -4,16 +4,16 @@ pipeline {
     environment {
         NEXUS_URL        = 'http://localhost:8081'
         NEXUS_REPO       = 'psi-mts-repo'
-        NEXUS_CREDENTIAL = 'nexus-credentials'  // Add in Jenkins > Credentials
+        NEXUS_CREDENTIAL = 'nexus-credentials'
         ARTIFACT_ID      = 'mts-backend'
-        GROUP_ID         = 'com.example'
+        GROUP_ID         = 'com.mts'
     }
 
     options {
-        buildDiscarder(logRotator(numToKeepStr: '5'))   // Keep last 5 builds
-        timestamps()                                     // Add timestamps to console
-        timeout(time: 15, unit: 'MINUTES')               // Fail if build hangs
-        disableConcurrentBuilds()                        // One build at a time
+        buildDiscarder(logRotator(numToKeepStr: '5'))
+        timestamps()
+        timeout(time: 15, unit: 'MINUTES')
+        disableConcurrentBuilds()
     }
 
     stages {
@@ -34,10 +34,60 @@ pipeline {
             }
         }
 
+        // ╔═══════════════════════════════════════════════════════════════╗
+        // ║              CI PIPELINE — FUNCTIONAL TEST PYRAMID          ║
+        // ║                                                              ║
+        // ║                    /‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\                       ║
+        // ║                   /   E2E Tests       \   ← REST Assured    ║
+        // ║                  / (real HTTP server)   \    fewest tests   ║
+        // ║                 /‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\                  ║
+        // ║                / Integration Tests        \  ← Spring +    ║
+        // ║               / (DB, MockMvc, wiring)      \   real DB    ║
+        // ║              /‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\             ║
+        // ║             / Unit Tests                       \ ← Mockito ║
+        // ║            / (no Spring, fastest, most tests)   \  mocks  ║
+        // ║           /‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\        ║
+        // ║                                                              ║
+        // ║   Tags:    @Tag("unit") | @Tag("integration") | @Tag("e2e") ║
+        // ║   Run:     mvn test -Dgroups=<tag>                           ║
+        // ╚═══════════════════════════════════════════════════════════════╝
+
         stage('Unit Test') {
             steps {
                 dir('mts-backend') {
-                    bat 'mvn test -B'
+                    echo '=== PYRAMID BOTTOM: Unit Tests ==='
+                    echo '--- No Spring context | Mockito mocks | Milliseconds ---'
+                    bat 'mvn test -Dgroups=unit -B'
+                }
+            }
+            post {
+                always {
+                    junit testResults: 'mts-backend\\target\\surefire-reports\\*.xml', allowEmptyResults: true
+                }
+            }
+        }
+
+        stage('Integration Test') {
+            steps {
+                dir('mts-backend') {
+                    echo '=== PYRAMID MIDDLE: Integration Tests ==='
+                    echo '--- @DataJpaTest + H2 | @WebMvcTest + MockMvc ---'
+                    bat 'mvn test -Dgroups=integration -B'
+                }
+            }
+            post {
+                always {
+                    junit testResults: 'mts-backend\\target\\surefire-reports\\*.xml', allowEmptyResults: true
+                }
+            }
+        }
+
+        stage('E2E Test') {
+            steps {
+                dir('mts-backend') {
+                    echo '=== PYRAMID TOP: E2E Tests (REST Assured) ==='
+                    echo '--- Full Spring Boot + real HTTP server + REST Assured ---'
+                    bat 'mvn test -Dgroups=e2e -B'
                 }
             }
             post {
@@ -58,7 +108,72 @@ pipeline {
                     archiveArtifacts artifacts: 'mts-backend/target/*.jar', fingerprint: true
                 }
             }
-        }    
+        }
+
+        // ╔═══════════════════════════════════════════════════════════════╗
+        // ║       UAT STAGE — NON-FUNCTIONAL TESTS (before release)     ║
+        // ║                                                              ║
+        // ║   These tests run ONLY when triggered manually or before     ║
+        // ║   a production release. They are slower and validate         ║
+        // ║   system-level behavior, not code changes.                   ║
+        // ║                                                              ║
+        // ║   Tags:  @Tag("security") | @Tag("performance")             ║
+        // ║          @Tag("resilience")                                  ║
+        // ╚═══════════════════════════════════════════════════════════════╝
+
+        stage('UAT: Non-Functional Tests') {
+            when {
+                anyOf {
+                    branch 'release/*'
+                    branch 'main'
+                    triggeredBy 'UserIdCause'   // Manual trigger
+                }
+            }
+            stages {
+                stage('Security Test') {
+                    steps {
+                        dir('mts-backend') {
+                            echo '=== UAT: Security Tests ==='
+                            echo '--- SQL injection | XSS | Malformed input | HTTP 405 ---'
+                            bat 'mvn test -Dgroups=security -B'
+                        }
+                    }
+                    post {
+                        always {
+                            junit testResults: 'mts-backend\\target\\surefire-reports\\*.xml', allowEmptyResults: true
+                        }
+                    }
+                }
+                stage('Performance Test') {
+                    steps {
+                        dir('mts-backend') {
+                            echo '=== UAT: Performance Tests ==='
+                            echo '--- Response time thresholds | Throughput ---'
+                            bat 'mvn test -Dgroups=performance -B'
+                        }
+                    }
+                    post {
+                        always {
+                            junit testResults: 'mts-backend\\target\\surefire-reports\\*.xml', allowEmptyResults: true
+                        }
+                    }
+                }
+                stage('Resilience Test') {
+                    steps {
+                        dir('mts-backend') {
+                            echo '=== UAT: Resilience & Data Integrity Tests ==='
+                            echo '--- Money conservation | Failure recovery | Notification down ---'
+                            bat 'mvn test -Dgroups=resilience -B'
+                        }
+                    }
+                    post {
+                        always {
+                            junit testResults: 'mts-backend\\target\\surefire-reports\\*.xml', allowEmptyResults: true
+                        }
+                    }
+                }
+            }
+        }
     }
 
     post {

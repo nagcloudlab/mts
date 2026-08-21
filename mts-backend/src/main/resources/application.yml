@@ -1,0 +1,46 @@
+# ============================================
+# Default Profile (H2 in-memory database)
+# No setup needed - just run the app!
+# ============================================
+spring:
+  application:
+    name: mts-backend
+
+  # H2 Database - runs in-memory, auto-creates tables, loads seed data
+  datasource:
+    url: jdbc:h2:mem:mtsdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+    defer-datasource-initialization: true
+    properties:
+      hibernate:
+        format_sql: true
+
+  # H2 Console - accessible at http://localhost:8080/h2-console
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+  # Load seed data from data.sql on startup
+  sql:
+    init:
+      mode: always
+
+server:
+  port: 8080
+
+logging:
+  level:
+    com.mts: INFO
+    org.springframework.web: INFO
+
+mts:
+  notification-service:
+    url: http://localhost:3000
