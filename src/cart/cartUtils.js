@@ -8,16 +8,23 @@ function calculateCartTotal(items) {
 }
 
 function applyDiscount(total, coupon) {
-  if (coupon && coupon.discountPercent) {
-    return total - (total * coupon.discountPercent / 100);
+  if (!coupon || coupon.discountPercent === undefined) {
+    return total;
   }
-  return total;
+  const discount = total * coupon.discountPercent / 100;
+  return total - discount;
 }
 
 function getDisplayTotal(cartState) {
+  if (!cartState || !cartState.items) {
+    return 0;
+  }
   const raw = calculateCartTotal(cartState.items);
   const discounted = applyDiscount(raw, cartState.activeCoupon);
+  console.log('Cart total calculated:', discounted);
   return discounted;
 }
+
+// TODO: add coupon validation
 
 module.exports = { calculateCartTotal, applyDiscount, getDisplayTotal };
