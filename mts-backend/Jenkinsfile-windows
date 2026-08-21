@@ -1,0 +1,76 @@
+pipeline {
+    agent any
+
+    environment {
+        NEXUS_URL        = 'http://localhost:8081'
+        NEXUS_REPO       = 'psi-mts-repo'
+        NEXUS_CREDENTIAL = 'nexus-credentials'  // Add in Jenkins > Credentials
+        ARTIFACT_ID      = 'mts-backend'
+        GROUP_ID         = 'com.example'
+    }
+
+    options {
+        buildDiscarder(logRotator(numToKeepStr: '5'))   // Keep last 5 builds
+        timestamps()                                     // Add timestamps to console
+        timeout(time: 15, unit: 'MINUTES')               // Fail if build hangs
+        disableConcurrentBuilds()                        // One build at a time
+    }
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                echo "Branch: ${env.BRANCH_NAME ?: 'N/A'}"
+                echo "Build:  #${env.BUILD_NUMBER}"
+                checkout scm
+            }
+        }
+
+        stage('Compile') {
+            steps {
+                dir('mts-backend') {
+                    bat 'mvn clean compile -B'
+                }
+            }
+        }
+
+        stage('Unit Test') {
+            steps {
+                dir('mts-backend') {
+                    bat 'mvn test -B'
+                }
+            }
+            post {
+                always {
+                    junit testResults: 'mts-backend\\target\\surefire-reports\\*.xml', allowEmptyResults: true
+                }
+            }
+        }
+
+        stage('Package') {
+            steps {
+                dir('mts-backend') {
+                    bat 'mvn package -DskipTests -B'
+                }
+            }
+            post {
+                success {
+                    archiveArtifacts artifacts: 'mts-backend/target/*.jar', fingerprint: true
+                }
+            }
+        }    
+    }
+
+    post {
+        success {
+            echo 'Build SUCCEEDED'
+        }
+        failure {
+            echo 'Build FAILED'
+        }
+        always {
+            echo 'Cleaning workspace...'
+            cleanWs()
+        }
+    }
+}
