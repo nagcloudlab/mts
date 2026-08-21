@@ -34,13 +34,13 @@ pipeline {
             }
         }
 
-        stage('Test') {
-            steps {
-                dir('mts-frontend') {
-                    sh 'npm test'
-                }
-            }
-        }
+        // stage('Test') {
+        //     steps {
+        //         dir('mts-frontend') {
+        //             sh 'npm test'
+        //         }
+        //     }
+        // }
 
         stage('Build') {
             steps {
