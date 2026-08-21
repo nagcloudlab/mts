@@ -185,7 +185,7 @@ pipeline {
                 anyOf {
                     branch 'release/*'
                     branch 'main'
-                    triggeredBy 'UserIdCause'   // Manual trigger
+                    // triggeredBy 'UserIdCause'   // Manual trigger
                 }
             }
             stages {
